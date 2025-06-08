@@ -33,10 +33,13 @@ public class Main {
 
         // Load teams from CSV once
         List<Team> allTeams = DataLoader.loadTeamsFromCSV("data/skaters.csv");
-        Set<String> teamNamesSet = allTeams.stream()
-                                           .map(Team::getName)
-                                           .collect(Collectors.toSet());
-        String[] teamNames = teamNamesSet.toArray(new String[0]);
+        List<String> teamNamesList = allTeams.stream()
+                                     .map(Team::getName)
+                                     .distinct()
+                                     .sorted()
+                                     .collect(Collectors.toList());
+        String[] teamNames = teamNamesList.toArray(new String[0]);
+
         JComboBox<String> teamSelector = new JComboBox<>(teamNames);
         teamSelector.setPreferredSize(new Dimension(180, 25));
 
