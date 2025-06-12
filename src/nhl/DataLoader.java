@@ -7,78 +7,58 @@ public class DataLoader {
 
     public static List<Team> loadTeamsFromCSV(String filePath) {
         Map<String, List<Player>> teamMap = new HashMap<>();
+        Set<String> addedPlayers = new HashSet<>();
 
         try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
-            String line;
-
-            // Skip header
-            line = br.readLine();
-            if (line == null) {
-                throw new IOException("CSV file is empty");
-            }
-
-            Set<String> addedPlayers = new HashSet<>();
+            String line = br.readLine(); // Skip header
+            if (line == null) throw new IOException("CSV file is empty");
 
             while ((line = br.readLine()) != null) {
                 String[] fields = line.split(",", -1);
-
                 if (fields.length < 138) continue;
-
-                String situation = fields[5].trim();
-                if (!situation.equals("5on5")) continue;
+                if (!fields[5].trim().equals("5on5")) continue;
 
                 try {
-                    String playerName = fields[2];
-                    String teamName = fields[3];
-                    String position = fields[4];
-                    String uniqueKey = teamName + "-" + playerName;
-                    if (addedPlayers.contains(uniqueKey)) continue;
-                    addedPlayers.add(uniqueKey);
+                    String playerName = fields[2].trim();
+                    String teamName = fields[3].trim();
+                    String position = fields[4].trim();
+                    String key = teamName + "-" + playerName;
 
-                    double xGA = parseSafeDouble(fields[134]);
-                    int hits = (int) parseSafeDouble(fields[46]);
-                    int takeaways = (int) parseSafeDouble(fields[47]);
-                    int goals = (int) parseSafeDouble(fields[34]);
-                    int points = (int) parseSafeDouble(fields[33]);
-                    int blockedShots = (int) parseSafeDouble(fields[83]);
-                    int shotAttemptsAgainst = (int) parseSafeDouble(fields[122]);
-                    int dZoneStarts = (int) parseSafeDouble(fields[70]);
-                    int giveaways = (int) parseSafeDouble(fields[48]);
-                    int oZoneStarts = (int) parseSafeDouble(fields[69]);
-                    int nZoneStarts = (int) parseSafeDouble(fields[71]);
-                    double iceTime = parseSafeDouble(fields[7]) / 60.0;
-                    int shifts = (int) parseSafeDouble(fields[8]);
-                    int timeOnBench = (int) parseSafeDouble(fields[79]);
-                    int penalties = (int) parseSafeDouble(fields[43]);
-                    int penaltyMinutes = (int) parseSafeDouble(fields[44]);
-                    double highDangerxGoals = parseSafeDouble(fields[54]);
-                    int reboundGoals = (int) parseSafeDouble(fields[36]);
-
-                    // Optional debug:
-                    /*
-                    System.out.println("Player: " + playerName);
-                    System.out.println("Points raw: " + fields[33]);
-                    System.out.println("Points parsed: " + points);
-                    System.out.println("------------------------");
-                    */
+                    if (addedPlayers.contains(key)) continue;
+                    addedPlayers.add(key);
 
                     Player player = new Player(
-                        playerName, position, xGA, hits, takeaways, goals, points,
-                        blockedShots, shotAttemptsAgainst, dZoneStarts, giveaways,
-                        oZoneStarts, nZoneStarts, iceTime, shifts, timeOnBench,
-                        penalties, penaltyMinutes, highDangerxGoals, reboundGoals
+                        playerName,
+                        position,
+                        parseSafeDouble(fields[134]),  // xGA
+                        (int) parseSafeDouble(fields[46]),  // hits
+                        (int) parseSafeDouble(fields[47]),  // takeaways
+                        (int) parseSafeDouble(fields[34]),  // goals
+                        (int) parseSafeDouble(fields[33]),  // points
+                        (int) parseSafeDouble(fields[83]),  // blocked shots
+                        (int) parseSafeDouble(fields[122]), // shot attempts against
+                        (int) parseSafeDouble(fields[70]),  // d-zone starts
+                        (int) parseSafeDouble(fields[48]),  // giveaways
+                        (int) parseSafeDouble(fields[69]),  // o-zone starts
+                        (int) parseSafeDouble(fields[71]),  // n-zone starts
+                        parseSafeDouble(fields[7]) / 60.0,  // ice time (minutes)
+                        (int) parseSafeDouble(fields[8]),   // shifts
+                        (int) parseSafeDouble(fields[79]),  // time on bench
+                        (int) parseSafeDouble(fields[43]),  // penalties
+                        (int) parseSafeDouble(fields[44]),  // penalty minutes
+                        parseSafeDouble(fields[54]),        // high-danger xGoals
+                        (int) parseSafeDouble(fields[36]),  // rebound goals
+                        (int) parseSafeDouble(fields[6])
                     );
 
                     teamMap.computeIfAbsent(teamName, k -> new ArrayList<>()).add(player);
 
-                } catch (NumberFormatException e) {
-                    System.err.println("Number format exception for player " + fields[2] + ": " + e.getMessage());
-                    continue;
+                } catch (Exception e) {
+                    System.err.println("Error parsing player data: " + e.getMessage());
                 }
             }
-
         } catch (IOException e) {
-            e.printStackTrace();
+            System.err.println("Error reading CSV: " + e.getMessage());
         }
 
         List<Team> teams = new ArrayList<>();
@@ -89,18 +69,46 @@ public class DataLoader {
         return teams;
     }
 
-    private static int parseSafeInt(String s) {
-        try {
-            return Integer.parseInt(s.trim());
-        } catch (NumberFormatException e) {
-            return 0;
+    // Find a player across all teams
+    public static Player findPlayerByName(String name, List<Team> teams) {
+        for (Team team : teams) {
+            for (Player player : team.getRoster()) {
+                if (player.getName().equalsIgnoreCase(name)) {
+                    return player;
+                }
+            }
         }
+        return null;
     }
 
+    // Get the team name for a player
+    public static String getTeamNameForPlayer(String name, List<Team> teams) {
+        for (Team team : teams) {
+            for (Player player : team.getRoster()) {
+                if (player.getName().equalsIgnoreCase(name)) {
+                    return team.getName();
+                }
+            }
+        }
+        return "Unknown Team";
+    }
+
+    // Get a list of all player names for UI or validation
+    public static List<String> getAllPlayerNames(List<Team> teams) {
+        List<String> names = new ArrayList<>();
+        for (Team team : teams) {
+            for (Player player : team.getRoster()) {
+                names.add(player.getName());
+            }
+        }
+        return names;
+    }
+
+    // Safe parsing
     private static double parseSafeDouble(String s) {
         try {
             return Double.parseDouble(s.trim());
-        } catch (NumberFormatException e) {
+        } catch (Exception e) {
             return 0.0;
         }
     }

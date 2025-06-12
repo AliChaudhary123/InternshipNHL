@@ -4,110 +4,116 @@ import java.util.*;
 
 public class LineupGenerator {
 
-    public static List<Player> getBestDefensiveLineup(Team team, String targetPlayer) {
-        List<Player> defenseLineup = new ArrayList<>();
-        List<Player> sorted = new ArrayList<>(team.getRoster());
+    public static List<Player> getBestDefensiveLineup(Team opponentTeam, String targetPlayerName) {
+        return getBestDefensiveLineup(opponentTeam, targetPlayerName, null);
+    }
 
-        // Find the target player object (case-insensitive match)
-        Player target = null;
-        for (Player p : sorted) {
-            if (p.getName().equalsIgnoreCase(targetPlayer)) {
-                target = p;
-                break;
+    public static List<Player> getBestDefensiveLineup(Team opponentTeam, String targetPlayerName, List<Team> allTeams) {
+        Player targetPlayer = null;
+
+        if (allTeams != null) {
+            outerLoop:
+            for (Team team : allTeams) {
+                for (Player p : team.getRoster()) {
+                    if (p.getName().equalsIgnoreCase(targetPlayerName)) {
+                        targetPlayer = p;
+                        break outerLoop;
+                    }
+                }
             }
         }
 
-        if (target == null) {
-            // If target player not found, just generate lineup normally
-            return generateLineupWithoutTarget(sorted);
+        double baseDefWeight = 0.7;
+        double baseOffWeight = 0.3;
+
+        double threatBoost = 0.0;
+        if (targetPlayer != null) {
+            double offensiveThreat = targetPlayer.getHighDangerxGoals() + targetPlayer.getGoals();
+            threatBoost = Math.min(offensiveThreat / 5.0, 1.0); // Stronger scaling
         }
 
-        // Always add the target player first
-        defenseLineup.add(target);
+        List<Player> sorted = new ArrayList<>(opponentTeam.getRoster());
+        List<Player> lineup = new ArrayList<>();
 
-        // Remove target from sorted list so we don't add twice
-        sorted.remove(target);
+        // Filter out goalies and under-41 games
+        sorted.removeIf(p -> p.getPosition().equalsIgnoreCase("G") || p.getGamesPlayed() < 41);
 
-        // Sort remaining players by defensive effectiveness (low xGA, high hits, takeaways)
+        final double DEF_WEIGHT = baseDefWeight;
+        final double OFF_WEIGHT = baseOffWeight;
+        final Player TARGET_FINAL = targetPlayer;
+        final double THREAT_BOOST = threatBoost;
+
         sorted.sort((a, b) -> {
-            double aScore = a.getExpectedGoalsAgainst() - 0.01 * a.getHits() - 0.02 * a.getTakeaways();
-            double bScore = b.getExpectedGoalsAgainst() - 0.01 * b.getHits() - 0.02 * b.getTakeaways();
-            return Double.compare(aScore, bScore);
+            double aScore = getPlayerCompositeScore(a, TARGET_FINAL, DEF_WEIGHT, OFF_WEIGHT, THREAT_BOOST);
+            double bScore = getPlayerCompositeScore(b, TARGET_FINAL, DEF_WEIGHT, OFF_WEIGHT, THREAT_BOOST);
+
+            return Double.compare(bScore, aScore);
         });
 
-        // Track how many defensemen and forwards have been added, excluding the target player
-        int defensemenSelected = target.getPosition().equalsIgnoreCase("D") ? 1 : 0;
-        Set<String> selectedForwards = new HashSet<>();
-        if (target.getPosition().equalsIgnoreCase("L") || target.getPosition().equalsIgnoreCase("C") || target.getPosition().equalsIgnoreCase("R")) {
-            selectedForwards.add(target.getPosition().toUpperCase().trim());
-        }
+        int defensemenCount = 0;
+        Set<String> forwardPositions = new HashSet<>();
 
-        // Fill rest of lineup until we have 2 defensemen and 3 forwards total (including target)
         for (Player p : sorted) {
-            if (defenseLineup.size() >= 5) break;  // Full lineup
-
             String pos = p.getPosition().toUpperCase().trim();
-            if (pos.equals("G")) continue; // Skip goalies
 
-            if (pos.equals("D") && defensemenSelected < 2) {
-                defenseLineup.add(p);
-                defensemenSelected++;
-            } else if ((pos.equals("L") || pos.equals("C") || pos.equals("R")) && !selectedForwards.contains(pos)) {
-                defenseLineup.add(p);
-                selectedForwards.add(pos);
+            if (pos.equals("D") && defensemenCount < 2) {
+                lineup.add(p);
+                defensemenCount++;
+            } else if ((pos.equals("L") || pos.equals("C") || pos.equals("R")) && !forwardPositions.contains(pos)) {
+                lineup.add(p);
+                forwardPositions.add(pos);
             }
+
+            if (defensemenCount == 2 && forwardPositions.size() == 3) break;
         }
 
-        // In rare cases, if lineup is still not full (less than 5), try to fill forwards first in order L, C, R
-        List<String> forwardPositions = Arrays.asList("L", "C", "R");
-        for (String pos : forwardPositions) {
-            if (defenseLineup.size() >= 5) break;
-            if (!selectedForwards.contains(pos)) {
-                // Find first forward with this position from sorted list
+        // Fallback for missing positions
+        for (String pos : Arrays.asList("L", "C", "R")) {
+            if (lineup.size() >= 5) break;
+            if (!forwardPositions.contains(pos)) {
                 for (Player p : sorted) {
-                    if (p.getPosition().equalsIgnoreCase(pos) && !defenseLineup.contains(p)) {
-                        defenseLineup.add(p);
-                        selectedForwards.add(pos);
+                    if (p.getPosition().equalsIgnoreCase(pos) && !lineup.contains(p)) {
+                        lineup.add(p);
+                        forwardPositions.add(pos);
                         break;
                     }
                 }
             }
         }
 
-        return defenseLineup;
+        // DEBUG PRINT
+        System.out.println("\n--- Defensive Lineup against " + targetPlayerName + " ---");
+        for (Player p : lineup) {
+            System.out.println(p.getName() + " - " + p.getPosition());
+        }
+
+        return lineup;
     }
 
-    // Helper method: original lineup generator without a target player
-    private static List<Player> generateLineupWithoutTarget(List<Player> sorted) {
-        List<Player> lineup = new ArrayList<>();
-        Map<String, Player> selectedForwards = new HashMap<>();
-        int defensemenSelected = 0;
+    private static double getPlayerCompositeScore(Player p, Player target, double defWeight, double offWeight, double threatBoost) {
+        double defScore =
+                -p.getExpectedGoalsAgainst() * 2.0
+                + 0.02 * p.getHits()
+                + 0.04 * p.getTakeaways()
+                - 0.015 * p.getGiveaways()
+                + 0.03 * p.getBlockedShots();
 
-        for (Player p : sorted) {
-            if (p.getPosition().equalsIgnoreCase("G")) continue;
+        // Amplify based on matchup
+        double matchupMultiplier = 1.0 + threatBoost * 1.5;  // Strong effect
+        double matchupDefScore = defScore * matchupMultiplier;
 
-            String pos = p.getPosition().toUpperCase().trim();
+        double offScore =
+                0.06 * p.getGoals()
+                + 0.04 * p.getPoints()
+                + 0.05 * p.getHighDangerxGoals()
+                + 0.04 * p.getReboundGoals();
 
-            if (pos.equals("D")) {
-                if (defensemenSelected < 2) {
-                    lineup.add(p);
-                    defensemenSelected++;
-                }
-            } else if ((pos.equals("L") || pos.equals("C") || pos.equals("R")) && !selectedForwards.containsKey(pos)) {
-                selectedForwards.put(pos, p);
-            }
+        double composite = defWeight * matchupDefScore + offWeight * offScore;
 
-            if (defensemenSelected == 2 && selectedForwards.size() == 3) {
-                break;
-            }
-        }
+        // DEBUG PRINT
+        System.out.printf("%s - Def: %.2f, Off: %.2f, Matchup: %.2f, Composite: %.2f%n",
+                          p.getName(), defScore, offScore, matchupMultiplier, composite);
 
-        // Add forwards in order L, C, R
-        for (String pos : Arrays.asList("L", "C", "R")) {
-            if (selectedForwards.containsKey(pos)) {
-                lineup.add(selectedForwards.get(pos));
-            }
-        }
-        return lineup;
+        return composite;
     }
 }

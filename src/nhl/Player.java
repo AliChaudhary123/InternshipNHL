@@ -21,12 +21,14 @@ public class Player {
     private int penaltyMinutes;
     private double highDangerxGoals;
     private int reboundGoals;
+    private int gamesPlayed; // ✅ NEW FIELD
 
-    // Full constructor
+    // ✅ Full constructor with gamesPlayed
     public Player(String name, String position, double expectedGoalsAgainst, int hits, int takeaways,
                   int goals, int points, int blockedShots, int shotAttemptsAgainst, int dZoneStarts,
                   int giveaways, int oZoneStarts, int nZoneStarts, double iceTime, int shifts,
-                  int timeOnBench, int penalties, int penaltyMinutes, double highDangerxGoals, int reboundGoals) {
+                  int timeOnBench, int penalties, int penaltyMinutes, double highDangerxGoals,
+                  int reboundGoals, int gamesPlayed) {
         this.name = name;
         this.position = position;
         this.expectedGoalsAgainst = expectedGoalsAgainst;
@@ -47,9 +49,15 @@ public class Player {
         this.penaltyMinutes = penaltyMinutes;
         this.highDangerxGoals = highDangerxGoals;
         this.reboundGoals = reboundGoals;
+        this.gamesPlayed = gamesPlayed; // ✅ NEW LINE
     }
 
-    // Getters
+    // ✅ Getter
+    public int getGamesPlayed() {
+        return gamesPlayed;
+    }
+
+    // Existing getters
     public String getName() { return name; }
     public String getPosition() { return position; }
     public double getExpectedGoalsAgainst() { return expectedGoalsAgainst; }
