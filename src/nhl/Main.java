@@ -5,6 +5,7 @@ import javax.swing.border.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.util.List;
+import java.util.ArrayList;
 import java.util.stream.Collectors;
 
 public class Main {
@@ -98,6 +99,16 @@ public class Main {
         gbc.anchor = GridBagConstraints.CENTER;
         inputPanel.add(generateButton, gbc);
 
+        // View heatmap button
+        JButton heatmapButton = new JButton("View Heatmap");
+        heatmapButton.setFont(new Font("Segoe UI", Font.BOLD, 15));
+        heatmapButton.setBackground(new Color(0, 153, 0));
+        heatmapButton.setForeground(Color.WHITE);
+        heatmapButton.setFocusPainted(false);
+        heatmapButton.setPreferredSize(new Dimension(180, 35));
+        gbc.gridy = 3;
+        inputPanel.add(heatmapButton, gbc);
+
         mainPanel.add(inputPanel, BorderLayout.NORTH);
 
         // Table for displaying lineup results
@@ -183,6 +194,23 @@ public class Main {
                     p.getReboundGoals()
                 });
             }
+        });
+
+        // Action listener for heatmap button
+        heatmapButton.addActionListener(e -> {
+            List<ShotData> sampleShots = new ArrayList<>();
+            sampleShots.add(new ShotData(200, 100));
+            sampleShots.add(new ShotData(220, 130));
+            sampleShots.add(new ShotData(180, 90));
+            sampleShots.add(new ShotData(300, 170));
+            sampleShots.add(new ShotData(350, 200));
+
+            JFrame heatmapFrame = new JFrame("Heatmap Visualization");
+            heatmapFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+            heatmapFrame.add(new RinkPanel(sampleShots));
+            heatmapFrame.pack();
+            heatmapFrame.setLocationRelativeTo(null);
+            heatmapFrame.setVisible(true);
         });
 
         frame.setVisible(true);
