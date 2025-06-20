@@ -21,9 +21,12 @@ public class Player {
     private int penaltyMinutes;
     private double highDangerxGoals;
     private int reboundGoals;
-    private int gamesPlayed; // ✅ NEW FIELD
+    private int gamesPlayed;
 
-    // ✅ Full constructor with gamesPlayed
+    // ✅ New field
+    private double takeawayEfficiencyScore;
+
+    // Constructor
     public Player(String name, String position, double expectedGoalsAgainst, int hits, int takeaways,
                   int goals, int points, int blockedShots, int shotAttemptsAgainst, int dZoneStarts,
                   int giveaways, int oZoneStarts, int nZoneStarts, double iceTime, int shifts,
@@ -49,15 +52,10 @@ public class Player {
         this.penaltyMinutes = penaltyMinutes;
         this.highDangerxGoals = highDangerxGoals;
         this.reboundGoals = reboundGoals;
-        this.gamesPlayed = gamesPlayed; // ✅ NEW LINE
+        this.gamesPlayed = gamesPlayed;
     }
 
-    // ✅ Getter
-    public int getGamesPlayed() {
-        return gamesPlayed;
-    }
-
-    // Existing getters
+    // Getters
     public String getName() { return name; }
     public String getPosition() { return position; }
     public double getExpectedGoalsAgainst() { return expectedGoalsAgainst; }
@@ -78,4 +76,9 @@ public class Player {
     public int getPenaltyMinutes() { return penaltyMinutes; }
     public double getHighDangerxGoals() { return highDangerxGoals; }
     public int getReboundGoals() { return reboundGoals; }
+    public int getGamesPlayed() { return gamesPlayed; }
+
+    // ✅ Takeaway efficiency score
+    public double getTakeawayEfficiencyScore() { return takeawayEfficiencyScore; }
+    public void setTakeawayEfficiencyScore(double score) { this.takeawayEfficiencyScore = score; }
 }

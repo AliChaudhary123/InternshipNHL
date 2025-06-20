@@ -48,7 +48,7 @@ public class DataLoader {
                         (int) parseSafeDouble(fields[44]),  // penalty minutes
                         parseSafeDouble(fields[54]),        // high-danger xGoals
                         (int) parseSafeDouble(fields[36]),  // rebound goals
-                        (int) parseSafeDouble(fields[6])
+                        (int) parseSafeDouble(fields[6])    // games played
                     );
 
                     teamMap.computeIfAbsent(teamName, k -> new ArrayList<>()).add(player);
@@ -61,6 +61,32 @@ public class DataLoader {
             System.err.println("Error reading CSV: " + e.getMessage());
         }
 
+        // ✅ Compute normalized takeaway efficiency
+        int maxTakeaways = Integer.MIN_VALUE;
+        int minTakeaways = Integer.MAX_VALUE;
+        int maxGiveaways = Integer.MIN_VALUE;
+        int minGiveaways = Integer.MAX_VALUE;
+
+        for (List<Player> roster : teamMap.values()) {
+            for (Player p : roster) {
+                maxTakeaways = Math.max(maxTakeaways, p.getTakeaways());
+                minTakeaways = Math.min(minTakeaways, p.getTakeaways());
+                maxGiveaways = Math.max(maxGiveaways, p.getGiveaways());
+                minGiveaways = Math.min(minGiveaways, p.getGiveaways());
+            }
+        }
+
+        for (List<Player> roster : teamMap.values()) {
+            for (Player p : roster) {
+                double normTake = (maxTakeaways - minTakeaways) == 0 ? 0 :
+                        (p.getTakeaways() - minTakeaways) / (double)(maxTakeaways - minTakeaways);
+                double normGive = (maxGiveaways - minGiveaways) == 0 ? 0 :
+                        (p.getGiveaways() - minGiveaways) / (double)(maxGiveaways - minGiveaways);
+                double efficiencyScore = normTake - normGive;
+                p.setTakeawayEfficiencyScore(efficiencyScore);
+            }
+        }
+
         List<Team> teams = new ArrayList<>();
         for (Map.Entry<String, List<Player>> entry : teamMap.entrySet()) {
             teams.add(new Team(entry.getKey(), entry.getValue()));
@@ -69,7 +95,6 @@ public class DataLoader {
         return teams;
     }
 
-    // Find a player across all teams
     public static Player findPlayerByName(String name, List<Team> teams) {
         for (Team team : teams) {
             for (Player player : team.getRoster()) {
@@ -81,7 +106,6 @@ public class DataLoader {
         return null;
     }
 
-    // Get the team name for a player
     public static String getTeamNameForPlayer(String name, List<Team> teams) {
         for (Team team : teams) {
             for (Player player : team.getRoster()) {
@@ -93,7 +117,6 @@ public class DataLoader {
         return "Unknown Team";
     }
 
-    // Get a list of all player names for UI or validation
     public static List<String> getAllPlayerNames(List<Team> teams) {
         List<String> names = new ArrayList<>();
         for (Team team : teams) {
@@ -104,7 +127,6 @@ public class DataLoader {
         return names;
     }
 
-    // Safe parsing
     private static double parseSafeDouble(String s) {
         try {
             return Double.parseDouble(s.trim());
