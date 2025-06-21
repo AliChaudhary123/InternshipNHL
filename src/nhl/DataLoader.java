@@ -61,7 +61,7 @@ public class DataLoader {
             System.err.println("Error reading CSV: " + e.getMessage());
         }
 
-        // ✅ Compute normalized takeaway efficiency
+        // ✅ Normalize takeaway and giveaway values across all players
         int maxTakeaways = Integer.MIN_VALUE;
         int minTakeaways = Integer.MAX_VALUE;
         int maxGiveaways = Integer.MIN_VALUE;
@@ -76,17 +76,29 @@ public class DataLoader {
             }
         }
 
+        // ✅ Compute efficiency score with weighted formula
         for (List<Player> roster : teamMap.values()) {
             for (Player p : roster) {
                 double normTake = (maxTakeaways - minTakeaways) == 0 ? 0 :
                         (p.getTakeaways() - minTakeaways) / (double)(maxTakeaways - minTakeaways);
                 double normGive = (maxGiveaways - minGiveaways) == 0 ? 0 :
                         (p.getGiveaways() - minGiveaways) / (double)(maxGiveaways - minGiveaways);
-                double efficiencyScore = normTake - normGive;
+
+                // 🧠 Adjusted formula: prioritize takeaways and reduce giveaway penalty
+                double efficiencyScore = (2.0 * normTake) - (0.5 * normGive);
                 p.setTakeawayEfficiencyScore(efficiencyScore);
             }
         }
 
+        // ✅ (Optional) Print top 5 players by takeaway efficiency
+        System.out.println("Top 5 Takeaway Efficiency Players:");
+        teamMap.values().stream()
+            .flatMap(List::stream)
+            .sorted(Comparator.comparingDouble(Player::getTakeawayEfficiencyScore).reversed())
+            .limit(5)
+            .forEach(p -> System.out.printf("- %s: %.3f%n", p.getName(), p.getTakeawayEfficiencyScore()));
+
+        // Finalize team objects
         List<Team> teams = new ArrayList<>();
         for (Map.Entry<String, List<Player>> entry : teamMap.entrySet()) {
             teams.add(new Team(entry.getKey(), entry.getValue()));

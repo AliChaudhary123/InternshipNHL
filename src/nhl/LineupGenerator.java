@@ -91,12 +91,26 @@ public class LineupGenerator {
     }
 
     private static double getPlayerCompositeScore(Player p, Player target, double defWeight, double offWeight, double threatBoost) {
-        double defScore =
-                -p.getExpectedGoalsAgainst() * 2.0
-                + 0.02 * p.getHits()
-                + 0.04 * p.getTakeaways()
-                - 0.015 * p.getGiveaways()
-                + 0.03 * p.getBlockedShots();
+        double baseDefScore =
+            -p.getExpectedGoalsAgainst() * 2.0
+            + 0.02 * p.getHits()
+            + 0.03 * p.getBlockedShots();
+
+        // Smoothed takeaway/giveaway ratio to avoid extreme spikes
+        double takeawayAdvantage = (double)(p.getTakeaways() + 1) / (p.getGiveaways() + 1);
+
+        // Stronger giveaway penalty by subtracting giveaway count directly
+        // Calculate net possession: takeaways - giveaways
+        int netTakeaways = p.getTakeaways() - p.getGiveaways();
+
+        // Defensive score adjusted by net takeaways * weight (linear)
+        // You can tweak the multiplier (e.g., 3.0) to give more or less importance
+        double possessionScore = 3.0 * netTakeaways;
+
+        // Alternatively, you can use the takeawayEfficiencyScore computed in DataLoader:
+        // double possessionScore = 5.0 * p.getTakeawayEfficiencyScore();
+
+        double defScore = baseDefScore + possessionScore;
 
         // Amplify based on matchup
         double matchupMultiplier = 1.0 + threatBoost * 1.5;  // Strong effect
@@ -111,8 +125,8 @@ public class LineupGenerator {
         double composite = defWeight * matchupDefScore + offWeight * offScore;
 
         // DEBUG PRINT
-        System.out.printf("%s - Def: %.2f, Off: %.2f, Matchup: %.2f, Composite: %.2f%n",
-                          p.getName(), defScore, offScore, matchupMultiplier, composite);
+        System.out.printf("%s - Def: %.2f, Off: %.2f, Matchup: %.2f, Composite: %.2f, Takeaways: %d, Giveaways: %d%n",
+                          p.getName(), defScore, offScore, matchupMultiplier, composite, p.getTakeaways(), p.getGiveaways());
 
         return composite;
     }
