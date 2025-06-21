@@ -29,14 +29,14 @@ public class LineupGenerator {
         double threatBoost = 0.0;
         if (targetPlayer != null) {
             double offensiveThreat = targetPlayer.getHighDangerxGoals() + targetPlayer.getGoals();
-            threatBoost = Math.min(offensiveThreat / 5.0, 1.0); // Stronger scaling
+            threatBoost = Math.min(offensiveThreat / 5.0, 1.0);
         }
 
         List<Player> sorted = new ArrayList<>(opponentTeam.getRoster());
         List<Player> lineup = new ArrayList<>();
 
-        // Filter out goalies and under-41 games
-        sorted.removeIf(p -> p.getPosition().equalsIgnoreCase("G") || p.getGamesPlayed() < 41);
+        // Filter out goalies and players with fewer than 50 games
+        sorted.removeIf(p -> p.getPosition().equalsIgnoreCase("G") || p.getGamesPlayed() < 50);
 
         final double DEF_WEIGHT = baseDefWeight;
         final double OFF_WEIGHT = baseOffWeight;
@@ -46,7 +46,6 @@ public class LineupGenerator {
         sorted.sort((a, b) -> {
             double aScore = getPlayerCompositeScore(a, TARGET_FINAL, DEF_WEIGHT, OFF_WEIGHT, THREAT_BOOST);
             double bScore = getPlayerCompositeScore(b, TARGET_FINAL, DEF_WEIGHT, OFF_WEIGHT, THREAT_BOOST);
-
             return Double.compare(bScore, aScore);
         });
 
@@ -81,7 +80,7 @@ public class LineupGenerator {
             }
         }
 
-        // DEBUG PRINT
+        // Debug output
         System.out.println("\n--- Defensive Lineup against " + targetPlayerName + " ---");
         for (Player p : lineup) {
             System.out.println(p.getName() + " - " + p.getPosition());
@@ -90,43 +89,42 @@ public class LineupGenerator {
         return lineup;
     }
 
-    private static double getPlayerCompositeScore(Player p, Player target, double defWeight, double offWeight, double threatBoost) {
+    public static double getPlayerCompositeScore(Player p, Player target, double defWeight, double offWeight, double threatBoost) {
+        double minutes = p.getIceTime() > 0 ? p.getIceTime() : 1; // prevent division by zero
+        double xGA_per60 = (p.getExpectedGoalsAgainst() / minutes) * 60.0;
+
+        // Base defensive score: xGA/60, hits, blocked shots
         double baseDefScore =
-            -p.getExpectedGoalsAgainst() * 2.0
-            + 0.02 * p.getHits()
-            + 0.03 * p.getBlockedShots();
+            -1.5 * xGA_per60 +
+            0.04 * p.getHits() +
+            0.05 * p.getBlockedShots();
 
-        // Smoothed takeaway/giveaway ratio to avoid extreme spikes
-        double takeawayAdvantage = (double)(p.getTakeaways() + 1) / (p.getGiveaways() + 1);
+        // Possession score (takeaways vs giveaways)
+        double possessionScore = 2.0 * (p.getTakeaways() - 0.5 * p.getGiveaways());
 
-        // Stronger giveaway penalty by subtracting giveaway count directly
-        // Calculate net possession: takeaways - giveaways
-        int netTakeaways = p.getTakeaways() - p.getGiveaways();
-
-        // Defensive score adjusted by net takeaways * weight (linear)
-        // You can tweak the multiplier (e.g., 3.0) to give more or less importance
-        double possessionScore = 3.0 * netTakeaways;
-
-        // Alternatively, you can use the takeawayEfficiencyScore computed in DataLoader:
-        // double possessionScore = 5.0 * p.getTakeawayEfficiencyScore();
-
+        // Combined defensive score
         double defScore = baseDefScore + possessionScore;
 
-        // Amplify based on matchup
-        double matchupMultiplier = 1.0 + threatBoost * 1.5;  // Strong effect
+        // Threat scaling
+        double matchupMultiplier = 1.0 + 0.25 * threatBoost;
         double matchupDefScore = defScore * matchupMultiplier;
 
+        // Offensive contribution
         double offScore =
-                0.06 * p.getGoals()
-                + 0.04 * p.getPoints()
-                + 0.05 * p.getHighDangerxGoals()
-                + 0.04 * p.getReboundGoals();
+            0.15 * p.getGoals() +
+            0.10 * p.getPoints() +
+            0.08 * p.getHighDangerxGoals() +
+            0.10 * p.getReboundGoals();
 
+        // Final composite score
         double composite = defWeight * matchupDefScore + offWeight * offScore;
 
-        // DEBUG PRINT
-        System.out.printf("%s - Def: %.2f, Off: %.2f, Matchup: %.2f, Composite: %.2f, Takeaways: %d, Giveaways: %d%n",
-                          p.getName(), defScore, offScore, matchupMultiplier, composite, p.getTakeaways(), p.getGiveaways());
+        // Debug print
+        System.out.printf(
+            "%s - xGA/60: %.2f, Def: %.2f, Off: %.2f, Matchup: %.2f, Composite: %.2f, Takeaways: %d, Giveaways: %d%n",
+            p.getName(), xGA_per60, defScore, offScore, matchupMultiplier, composite,
+            p.getTakeaways(), p.getGiveaways()
+        );
 
         return composite;
     }

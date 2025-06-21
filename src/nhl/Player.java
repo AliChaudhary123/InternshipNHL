@@ -3,7 +3,9 @@ package nhl;
 public class Player {
     private String name;
     private String position; // F, D, G
-    private double expectedGoalsAgainst;
+    private double expectedGoalsAgainst;      // Individual expected goals against (if needed)
+    private double onIceExpectedGoalsAgainstPer60; // NEW: On-ice xGA per 60 minutes
+
     private int hits;
     private int takeaways;
     private int goals;
@@ -26,15 +28,19 @@ public class Player {
     // ✅ New field
     private double takeawayEfficiencyScore;
 
-    // Constructor
-    public Player(String name, String position, double expectedGoalsAgainst, int hits, int takeaways,
-                  int goals, int points, int blockedShots, int shotAttemptsAgainst, int dZoneStarts,
-                  int giveaways, int oZoneStarts, int nZoneStarts, double iceTime, int shifts,
-                  int timeOnBench, int penalties, int penaltyMinutes, double highDangerxGoals,
-                  int reboundGoals, int gamesPlayed) {
+    // Constructor - updated to include onIceExpectedGoalsAgainstPer60
+    public Player(String name, String position, double expectedGoalsAgainst,
+                  double onIceExpectedGoalsAgainstPer60,
+                  int hits, int takeaways, int goals, int points,
+                  int blockedShots, int shotAttemptsAgainst, int dZoneStarts,
+                  int giveaways, int oZoneStarts, int nZoneStarts,
+                  double iceTime, int shifts, int timeOnBench,
+                  int penalties, int penaltyMinutes,
+                  double highDangerxGoals, int reboundGoals, int gamesPlayed) {
         this.name = name;
         this.position = position;
         this.expectedGoalsAgainst = expectedGoalsAgainst;
+        this.onIceExpectedGoalsAgainstPer60 = onIceExpectedGoalsAgainstPer60;
         this.hits = hits;
         this.takeaways = takeaways;
         this.goals = goals;
@@ -59,6 +65,7 @@ public class Player {
     public String getName() { return name; }
     public String getPosition() { return position; }
     public double getExpectedGoalsAgainst() { return expectedGoalsAgainst; }
+    public double getOnIceExpectedGoalsAgainstPer60() { return onIceExpectedGoalsAgainstPer60; }
     public int getHits() { return hits; }
     public int getTakeaways() { return takeaways; }
     public int getGoals() { return goals; }

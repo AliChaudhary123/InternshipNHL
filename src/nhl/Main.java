@@ -24,42 +24,36 @@ public class Main {
         JFrame frame = new JFrame("NHL Defensive Lineup Generator");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setSize(900, 600);
-        frame.setLocationRelativeTo(null);  // Center window
+        frame.setLocationRelativeTo(null);
 
-        // Main container panel with padding
         JPanel mainPanel = new JPanel(new BorderLayout(15, 15));
         mainPanel.setBorder(new EmptyBorder(15, 15, 15, 15));
         frame.setContentPane(mainPanel);
 
-        // Load all teams once
         List<Team> allTeams = DataLoader.loadTeamsFromCSV("data/skaters.csv");
 
-        // Extract unique team names sorted alphabetically
         List<String> teamNamesList = allTeams.stream()
-                                             .map(Team::getName)
-                                             .distinct()
-                                             .sorted()
-                                             .collect(Collectors.toList());
+                .map(Team::getName)
+                .distinct()
+                .sorted()
+                .collect(Collectors.toList());
 
         JComboBox<String> teamSelector = new JComboBox<>(teamNamesList.toArray(new String[0]));
         teamSelector.setPreferredSize(new Dimension(180, 25));
 
-        // Input panel with GridBagLayout
         JPanel inputPanel = new JPanel(new GridBagLayout());
         inputPanel.setBorder(BorderFactory.createTitledBorder(
-            BorderFactory.createEtchedBorder(),
-            "Input Parameters",
-            TitledBorder.CENTER,
-            TitledBorder.TOP,
-            new Font("Segoe UI", Font.BOLD, 16),
-            new Color(0, 70, 130))
-        );
+                BorderFactory.createEtchedBorder(),
+                "Input Parameters",
+                TitledBorder.CENTER,
+                TitledBorder.TOP,
+                new Font("Segoe UI", Font.BOLD, 16),
+                new Color(0, 70, 130)));
 
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(8, 8, 8, 8);
         gbc.fill = GridBagConstraints.HORIZONTAL;
 
-        // Target Player label and text field
         JLabel targetLabel = new JLabel("Target Player:");
         targetLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));
         gbc.gridx = 0;
@@ -74,7 +68,6 @@ public class Main {
         gbc.weightx = 1.0;
         inputPanel.add(targetPlayerField, gbc);
 
-        // Team label and combo box
         JLabel teamLabel = new JLabel("Defending Team:");
         teamLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));
         gbc.gridx = 0;
@@ -86,7 +79,6 @@ public class Main {
         gbc.gridy = 1;
         inputPanel.add(teamSelector, gbc);
 
-        // Generate lineup button
         JButton generateButton = new JButton("Generate Lineup");
         generateButton.setFont(new Font("Segoe UI", Font.BOLD, 15));
         generateButton.setBackground(new Color(0, 102, 204));
@@ -99,7 +91,6 @@ public class Main {
         gbc.anchor = GridBagConstraints.CENTER;
         inputPanel.add(generateButton, gbc);
 
-        // View heatmap button
         JButton heatmapButton = new JButton("View Heatmap");
         heatmapButton.setFont(new Font("Segoe UI", Font.BOLD, 15));
         heatmapButton.setBackground(new Color(0, 153, 0));
@@ -111,13 +102,13 @@ public class Main {
 
         mainPanel.add(inputPanel, BorderLayout.NORTH);
 
-        // Table for displaying lineup results
         DefaultTableModel tableModel = new DefaultTableModel(COLUMN_NAMES, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
-                return false; // prevent cell editing
+                return false;
             }
         };
+
         JTable outputTable = new JTable(tableModel);
         outputTable.setFillsViewportHeight(true);
         outputTable.setFont(new Font("Segoe UI", Font.PLAIN, 14));
@@ -125,16 +116,21 @@ public class Main {
 
         JScrollPane scrollPane = new JScrollPane(outputTable);
         scrollPane.setBorder(BorderFactory.createTitledBorder(
-            BorderFactory.createEtchedBorder(),
-            "Lineup Results",
-            TitledBorder.CENTER,
-            TitledBorder.TOP,
-            new Font("Segoe UI", Font.BOLD, 16),
-            new Color(0, 70, 130))
+                BorderFactory.createEtchedBorder(),
+                "Lineup Results",
+                TitledBorder.CENTER,
+                TitledBorder.TOP,
+                new Font("Segoe UI", Font.BOLD, 16),
+                new Color(0, 70, 130))
         );
         mainPanel.add(scrollPane, BorderLayout.CENTER);
 
-        // Action listener for generate button
+        // ✅ Summary Panel
+        JLabel summaryLabel = new JLabel("Summary: ");
+        summaryLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        summaryLabel.setBorder(new EmptyBorder(10, 0, 0, 0));
+        mainPanel.add(summaryLabel, BorderLayout.SOUTH);
+
         generateButton.addActionListener(e -> {
             String targetPlayer = targetPlayerField.getText().trim();
             String selectedTeam = (String) teamSelector.getSelectedItem();
@@ -151,14 +147,12 @@ public class Main {
                 return;
             }
 
-            // Clear any previous results
             tableModel.setRowCount(0);
 
-            // Find the defending team object
             Team defendingTeam = allTeams.stream()
-                                         .filter(t -> t.getName().equalsIgnoreCase(selectedTeam))
-                                         .findFirst()
-                                         .orElse(null);
+                    .filter(t -> t.getName().equalsIgnoreCase(selectedTeam))
+                    .findFirst()
+                    .orElse(null);
 
             if (defendingTeam == null) {
                 JOptionPane.showMessageDialog(frame, "Selected defending team not found.",
@@ -166,10 +160,6 @@ public class Main {
                 return;
             }
 
-            // Debug: print inputs
-            System.out.println("Generating lineup from team: " + defendingTeam.getName() + " to stop player: " + targetPlayer);
-
-            // Generate the lineup from the selected team to stop the target player
             List<Player> defensiveLineup = LineupGenerator.getBestDefensiveLineup(defendingTeam, targetPlayer, allTeams);
 
             if (defensiveLineup.isEmpty()) {
@@ -178,25 +168,47 @@ public class Main {
                 return;
             }
 
-            // Fill table with defensive lineup players
             for (Player p : defensiveLineup) {
                 tableModel.addRow(new Object[]{
-                    p.getName(),
-                    p.getPosition(),
-                    String.format("%.2f", p.getExpectedGoalsAgainst()),
-                    p.getHits(),
-                    p.getTakeaways(),
-                    p.getBlockedShots(),
-                    p.getGiveaways(),
-                    p.getOZoneStarts(),
-                    p.getDZoneStarts(),
-                    String.format("%.2f", p.getHighDangerxGoals()),
-                    p.getReboundGoals()
+                        p.getName(),
+                        p.getPosition(),
+                        String.format("%.2f", p.getExpectedGoalsAgainst()),
+                        p.getHits(),
+                        p.getTakeaways(),
+                        p.getBlockedShots(),
+                        p.getGiveaways(),
+                        p.getOZoneStarts(),
+                        p.getDZoneStarts(),
+                        String.format("%.2f", p.getHighDangerxGoals()),
+                        p.getReboundGoals()
                 });
             }
+
+            // ✅ Compute and show summary
+            double totalXGA = 0.0;
+            int totalTakeaways = 0;
+            int totalGiveaways = 0;
+            double totalScore = 0.0;
+            Player target = DataLoader.findPlayerByName(targetPlayer, allTeams);
+            double threatBoost = (target != null)
+                    ? Math.min((target.getHighDangerxGoals() + target.getGoals()) / 5.0, 1.0)
+                    : 0.0;
+
+            for (Player p : defensiveLineup) {
+                totalXGA += p.getExpectedGoalsAgainst();
+                totalTakeaways += p.getTakeaways();
+                totalGiveaways += p.getGiveaways();
+                totalScore += LineupGenerator.getPlayerCompositeScore(p, target, 0.7, 0.3, threatBoost);
+            }
+
+            int count = defensiveLineup.size();
+            String summaryText = String.format(
+                    "<html><b>Summary:</b> Avg xGA: %.2f | Total Takeaways: %d | Total Giveaways: %d | Avg Score: %.2f</html>",
+                    totalXGA / count, totalTakeaways, totalGiveaways, totalScore / count
+            );
+            summaryLabel.setText(summaryText);
         });
 
-        // Action listener for heatmap button
         heatmapButton.addActionListener(e -> {
             List<ShotData> sampleShots = new ArrayList<>();
             sampleShots.add(new ShotData(200, 100));

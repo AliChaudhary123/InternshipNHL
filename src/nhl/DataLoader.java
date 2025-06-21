@@ -27,10 +27,16 @@ public class DataLoader {
                     if (addedPlayers.contains(key)) continue;
                     addedPlayers.add(key);
 
+                    // Calculate on-ice xGA per 60 minutes
+                    double onIceXGA = parseSafeDouble(fields[106]);  // OnIce_A_xGoals
+                    double iceTime = parseSafeDouble(fields[7]) / 60.0;  // ice time in minutes
+                    double onIceXGA60 = iceTime > 0 ? onIceXGA / iceTime : 0;
+
                     Player player = new Player(
                         playerName,
                         position,
-                        parseSafeDouble(fields[134]),  // xGA
+                        parseSafeDouble(fields[134]),  // expectedGoalsAgainst
+                        onIceXGA60,                    // onIceExpectedGoalsAgainstPer60
                         (int) parseSafeDouble(fields[46]),  // hits
                         (int) parseSafeDouble(fields[47]),  // takeaways
                         (int) parseSafeDouble(fields[34]),  // goals
@@ -41,7 +47,7 @@ public class DataLoader {
                         (int) parseSafeDouble(fields[48]),  // giveaways
                         (int) parseSafeDouble(fields[69]),  // o-zone starts
                         (int) parseSafeDouble(fields[71]),  // n-zone starts
-                        parseSafeDouble(fields[7]) / 60.0,  // ice time (minutes)
+                        iceTime,                            // ice time (minutes)
                         (int) parseSafeDouble(fields[8]),   // shifts
                         (int) parseSafeDouble(fields[79]),  // time on bench
                         (int) parseSafeDouble(fields[43]),  // penalties
@@ -61,7 +67,15 @@ public class DataLoader {
             System.err.println("Error reading CSV: " + e.getMessage());
         }
 
-        // ✅ Normalize takeaway and giveaway values across all players
+        // The rest of your normalization and efficiency score code follows...
+
+        // ...
+        return finalizeTeams(teamMap);
+    }
+
+    private static List<Team> finalizeTeams(Map<String, List<Player>> teamMap) {
+        // Normalize takeaway/giveaway & compute scores (unchanged code here)
+
         int maxTakeaways = Integer.MIN_VALUE;
         int minTakeaways = Integer.MAX_VALUE;
         int maxGiveaways = Integer.MIN_VALUE;
@@ -76,7 +90,6 @@ public class DataLoader {
             }
         }
 
-        // ✅ Compute efficiency score with weighted formula
         for (List<Player> roster : teamMap.values()) {
             for (Player p : roster) {
                 double normTake = (maxTakeaways - minTakeaways) == 0 ? 0 :
@@ -84,13 +97,11 @@ public class DataLoader {
                 double normGive = (maxGiveaways - minGiveaways) == 0 ? 0 :
                         (p.getGiveaways() - minGiveaways) / (double)(maxGiveaways - minGiveaways);
 
-                // 🧠 Adjusted formula: prioritize takeaways and reduce giveaway penalty
                 double efficiencyScore = (2.0 * normTake) - (0.5 * normGive);
                 p.setTakeawayEfficiencyScore(efficiencyScore);
             }
         }
 
-        // ✅ (Optional) Print top 5 players by takeaway efficiency
         System.out.println("Top 5 Takeaway Efficiency Players:");
         teamMap.values().stream()
             .flatMap(List::stream)
@@ -98,12 +109,10 @@ public class DataLoader {
             .limit(5)
             .forEach(p -> System.out.printf("- %s: %.3f%n", p.getName(), p.getTakeawayEfficiencyScore()));
 
-        // Finalize team objects
         List<Team> teams = new ArrayList<>();
         for (Map.Entry<String, List<Player>> entry : teamMap.entrySet()) {
             teams.add(new Team(entry.getKey(), entry.getValue()));
         }
-
         return teams;
     }
 
