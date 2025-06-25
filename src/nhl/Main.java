@@ -1,5 +1,8 @@
 package nhl;
 
+import nhl.ShotData;
+import nhl.ShotDataLoader;
+
 import javax.swing.*;
 import javax.swing.border.*;
 import javax.swing.table.DefaultTableModel;
@@ -125,7 +128,6 @@ public class Main {
         );
         mainPanel.add(scrollPane, BorderLayout.CENTER);
 
-        // ✅ Summary Panel
         JLabel summaryLabel = new JLabel("Summary: ");
         summaryLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));
         summaryLabel.setBorder(new EmptyBorder(10, 0, 0, 0));
@@ -184,7 +186,6 @@ public class Main {
                 });
             }
 
-            // ✅ Compute and show summary
             double totalXGA = 0.0;
             int totalTakeaways = 0;
             int totalGiveaways = 0;
@@ -210,19 +211,32 @@ public class Main {
         });
 
         heatmapButton.addActionListener(e -> {
-            List<ShotData> sampleShots = new ArrayList<>();
-            sampleShots.add(new ShotData(200, 100));
-            sampleShots.add(new ShotData(220, 130));
-            sampleShots.add(new ShotData(180, 90));
-            sampleShots.add(new ShotData(300, 170));
-            sampleShots.add(new ShotData(350, 200));
+            try {
+                String targetPlayer = targetPlayerField.getText().trim();
+                List<ShotData> shotList = ShotDataLoader.loadShotsForPlayer("data/shots.csv", targetPlayer);
+               
 
-            JFrame heatmapFrame = new JFrame("Heatmap Visualization");
-            heatmapFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-            heatmapFrame.add(new RinkPanel(sampleShots));
-            heatmapFrame.pack();
-            heatmapFrame.setLocationRelativeTo(null);
-            heatmapFrame.setVisible(true);
+                if (shotList == null || shotList.isEmpty()) {
+                    JOptionPane.showMessageDialog(frame, "No shot data found or loaded.",
+                            "Data Error", JOptionPane.WARNING_MESSAGE);
+                    return;
+                }
+
+                JFrame heatmapFrame = new JFrame("xGoal Heatmap vs Target Player");
+                heatmapFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+
+                RinkPanel rinkPanel = new RinkPanel(shotList);
+                heatmapFrame.add(rinkPanel);
+
+                heatmapFrame.pack();
+                heatmapFrame.setLocationRelativeTo(frame);
+                heatmapFrame.setVisible(true);
+
+            } catch (Exception ex) {
+                ex.printStackTrace();
+                JOptionPane.showMessageDialog(frame, "Error loading heatmap data: " + ex.getMessage(),
+                        "Error", JOptionPane.ERROR_MESSAGE);
+            }
         });
 
         frame.setVisible(true);
