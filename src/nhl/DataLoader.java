@@ -3,8 +3,20 @@ package nhl;
 import java.io.*;
 import java.util.*;
 
+/**
+ * Utility class responsible for loading player and team data from a CSV file,
+ * normalizing stats, and computing metrics such as takeaway efficiency.
+ */
 public class DataLoader {
 
+    /**
+     * Loads player data from a CSV file and organizes them into teams.
+     * Filters for 5-on-5 play only and calculates additional metrics like on-ice xGA/60
+     * and takeaway efficiency.
+     *
+     * @param filePath Path to the CSV file.
+     * @return A list of {@link Team} objects, each containing its player roster.
+     */
     public static List<Team> loadTeamsFromCSV(String filePath) {
         Map<String, List<Player>> teamMap = new HashMap<>();
         Set<String> addedPlayers = new HashSet<>();
@@ -27,34 +39,33 @@ public class DataLoader {
                     if (addedPlayers.contains(key)) continue;
                     addedPlayers.add(key);
 
-                    // Calculate on-ice xGA per 60 minutes
-                    double onIceXGA = parseSafeDouble(fields[106]);  // OnIce_A_xGoals
-                    double iceTime = parseSafeDouble(fields[7]) / 60.0;  // ice time in minutes
+                    double onIceXGA = parseSafeDouble(fields[106]);
+                    double iceTime = parseSafeDouble(fields[7]) / 60.0;
                     double onIceXGA60 = iceTime > 0 ? onIceXGA / iceTime : 0;
 
                     Player player = new Player(
                         playerName,
                         position,
-                        parseSafeDouble(fields[134]),  // expectedGoalsAgainst
-                        onIceXGA60,                    // onIceExpectedGoalsAgainstPer60
-                        (int) parseSafeDouble(fields[46]),  // hits
-                        (int) parseSafeDouble(fields[47]),  // takeaways
-                        (int) parseSafeDouble(fields[34]),  // goals
-                        (int) parseSafeDouble(fields[33]),  // points
-                        (int) parseSafeDouble(fields[83]),  // blocked shots
-                        (int) parseSafeDouble(fields[122]), // shot attempts against
-                        (int) parseSafeDouble(fields[70]),  // d-zone starts
-                        (int) parseSafeDouble(fields[48]),  // giveaways
-                        (int) parseSafeDouble(fields[69]),  // o-zone starts
-                        (int) parseSafeDouble(fields[71]),  // n-zone starts
-                        iceTime,                            // ice time (minutes)
-                        (int) parseSafeDouble(fields[8]),   // shifts
-                        (int) parseSafeDouble(fields[79]),  // time on bench
-                        (int) parseSafeDouble(fields[43]),  // penalties
-                        (int) parseSafeDouble(fields[44]),  // penalty minutes
-                        parseSafeDouble(fields[54]),        // high-danger xGoals
-                        (int) parseSafeDouble(fields[36]),  // rebound goals
-                        (int) parseSafeDouble(fields[6])    // games played
+                        parseSafeDouble(fields[134]),
+                        onIceXGA60,
+                        (int) parseSafeDouble(fields[46]),
+                        (int) parseSafeDouble(fields[47]),
+                        (int) parseSafeDouble(fields[34]),
+                        (int) parseSafeDouble(fields[33]),
+                        (int) parseSafeDouble(fields[83]),
+                        (int) parseSafeDouble(fields[122]),
+                        (int) parseSafeDouble(fields[70]),
+                        (int) parseSafeDouble(fields[48]),
+                        (int) parseSafeDouble(fields[69]),
+                        (int) parseSafeDouble(fields[71]),
+                        iceTime,
+                        (int) parseSafeDouble(fields[8]),
+                        (int) parseSafeDouble(fields[79]),
+                        (int) parseSafeDouble(fields[43]),
+                        (int) parseSafeDouble(fields[44]),
+                        parseSafeDouble(fields[54]),
+                        (int) parseSafeDouble(fields[36]),
+                        (int) parseSafeDouble(fields[6])
                     );
 
                     teamMap.computeIfAbsent(teamName, k -> new ArrayList<>()).add(player);
@@ -63,19 +74,22 @@ public class DataLoader {
                     System.err.println("Error parsing player data: " + e.getMessage());
                 }
             }
+
         } catch (IOException e) {
             System.err.println("Error reading CSV: " + e.getMessage());
         }
 
-        // The rest of your normalization and efficiency score code follows...
-
-        // ...
         return finalizeTeams(teamMap);
     }
 
+    /**
+     * Finalizes team data by normalizing takeaways and giveaways and
+     * computing a takeaway efficiency score for each player.
+     *
+     * @param teamMap A map of team names to lists of their players.
+     * @return A list of {@link Team} objects with normalized player data.
+     */
     private static List<Team> finalizeTeams(Map<String, List<Player>> teamMap) {
-        // Normalize takeaway/giveaway & compute scores (unchanged code here)
-
         int maxTakeaways = Integer.MIN_VALUE;
         int minTakeaways = Integer.MAX_VALUE;
         int maxGiveaways = Integer.MIN_VALUE;
@@ -116,6 +130,13 @@ public class DataLoader {
         return teams;
     }
 
+    /**
+     * Finds a player by name from the provided list of teams.
+     *
+     * @param name  The name of the player to search for.
+     * @param teams The list of all teams.
+     * @return The matching {@link Player}, or null if not found.
+     */
     public static Player findPlayerByName(String name, List<Team> teams) {
         for (Team team : teams) {
             for (Player player : team.getRoster()) {
@@ -127,6 +148,13 @@ public class DataLoader {
         return null;
     }
 
+    /**
+     * Retrieves the name of the team that a given player belongs to.
+     *
+     * @param name  The player's name.
+     * @param teams The list of all teams.
+     * @return The name of the player's team, or "Unknown Team" if not found.
+     */
     public static String getTeamNameForPlayer(String name, List<Team> teams) {
         for (Team team : teams) {
             for (Player player : team.getRoster()) {
@@ -138,6 +166,12 @@ public class DataLoader {
         return "Unknown Team";
     }
 
+    /**
+     * Collects the names of all players across all teams.
+     *
+     * @param teams The list of teams to extract player names from.
+     * @return A list of all player names.
+     */
     public static List<String> getAllPlayerNames(List<Team> teams) {
         List<String> names = new ArrayList<>();
         for (Team team : teams) {
@@ -148,6 +182,13 @@ public class DataLoader {
         return names;
     }
 
+    /**
+     * Parses a string to a double safely.
+     * Returns 0.0 if parsing fails.
+     *
+     * @param s The string to parse.
+     * @return The parsed double value or 0.0 on error.
+     */
     private static double parseSafeDouble(String s) {
         try {
             return Double.parseDouble(s.trim());
